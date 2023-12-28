@@ -1,0 +1,65 @@
+{{- if .Values.celery.beat.enabled -}}
+{{ $fullname := printf "%s-celery-beat" .Release.Name | trunc 63 | trimSuffix "-" }}
+{{ $fullname_django := printf "%s-django" .Release.Name | trunc 63 | trimSuffix "-" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ $fullname }}
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: {{ $fullname }}
+    spec:
+      {{- with .Values.django.image.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ $fullname }}
+          image: {{ include "application.image" . }}
+          imagePullPolicy: {{ .Values.django.image.pullPolicy }}
+          {{- with .Values.django.workingDir }}
+          workingDir: {{ . }}
+          {{- end }}
+          args:
+            - celery
+            - --app={{ $.Values.celery.application }}
+            - beat
+            - --loglevel=INFO
+          envFrom:
+            - secretRef:
+                name: {{ $fullname_django }}-secrets
+          {{- if .Values.celery.beat.resources }}
+          resources:
+            {{- toYaml .Values.celery.beat.resources | nindent 12 }}
+          {{- end }}
+          # startupProbe:
+          #   exec:
+          #       command:
+          #         - sh
+          #         - -c
+          #         - test -e /tmp/celery_worker_ready
+          #   initialDelaySeconds: 10
+          #   periodSeconds: 10
+          #   timeoutSeconds: 10
+          #   failureThreshold: 5
+          # livenessProbe:
+          #   exec:
+          #       command:
+          #         - sh
+          #         - -c
+          #         - test -e /tmp/celery_worker_heartbeat
+          #   initialDelaySeconds: 30
+          #   periodSeconds: 60
+          #   timeoutSeconds: 15
+{{- end -}}

@@ -1,0 +1,18 @@
+{{- if .Values.redis.enabled -}}
+{{ $fullname := printf "%s-redis" .Release.Name | trunc 63 | trimSuffix "-" }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $fullname }}-volume
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+spec:
+  volumeMode: Filesystem
+  storageClassName: {{ .Values.pvc.storageClass }}
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.redis.storage }}
+{{- end -}}

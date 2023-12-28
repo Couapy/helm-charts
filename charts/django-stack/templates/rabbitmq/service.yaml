@@ -1,0 +1,21 @@
+{{- if .Values.rabbitmq.enabled -}}
+{{ $fullname := printf "%s-rabbitmq" .Release.Name | trunc 63 | trimSuffix "-" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  ports:
+    - name: rabbitmq
+      port: 5672
+      targetPort: 5672
+    - name: management
+      port: 15672
+      targetPort: 15672
+  selector:
+    app: {{ $fullname }}
+{{- end -}}

@@ -1,0 +1,18 @@
+{{- if .Values.rabbitmq.enabled -}}
+{{ $fullname := printf "%s-rabbitmq" .Release.Name | trunc 63 | trimSuffix "-" }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $fullname }}-volume
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+spec:
+  volumeMode: Filesystem
+  storageClassName: {{ .Values.pvc.storageClass }}
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.rabbitmq.storage }}
+{{- end -}}

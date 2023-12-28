@@ -1,0 +1,83 @@
+{{- if or .Values.django.statics.enabled .Values.django.medias.enabled -}}
+{{ $fullname := printf "%s-nginx" .Release.Name | trunc 63 | trimSuffix "-" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ $fullname }}
+  replicas: {{ .Values.django.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: {{ $fullname }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      containers:
+        - name: {{ $fullname }}
+          image: "{{ .Values.nginx.image.repository}}:{{ .Values.nginx.image.tag }}"
+          imagePullPolicy: {{ .Values.nginx.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+            - name: http2
+              containerPort: 8000
+              protocol: TCP
+          {{- if .Values.django.resources }}
+          resources:
+            {{- toYaml .Values.django.resources | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: configuration
+              mountPath: /etc/nginx/conf.d
+          {{- if .Values.django.statics.enabled }}
+            - name: statics
+              mountPath: /mnt/statics
+          {{- end }}
+          {{- if .Values.django.medias.enabled }}
+            - name: media
+              mountPath: /mnt/medias
+          {{- end }}
+          startupProbe:
+            httpGet:
+              path: /healthcheck
+              port: http2
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 10
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: http2
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: http2
+            periodSeconds: 10
+      volumes:
+        - name: configuration
+          configMap:
+            name: {{ $fullname }}-configmap
+        {{- if .Values.django.statics.enabled }}
+        - name: statics
+          persistentVolumeClaim:
+            claimName: {{ $.Release.Name }}-statics-volume
+        {{- end }}
+        {{- if .Values.django.medias.enabled }}
+        - name: media
+          persistentVolumeClaim:
+            claimName: {{ $.Release.Name }}-medias-volume
+        {{- end }}
+{{- end -}}

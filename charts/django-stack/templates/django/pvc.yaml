@@ -1,0 +1,45 @@
+{{- if .Values.django.statics.enabled -}}
+{{ $fullname := printf "%s-statics-volume" .Release.Name | trunc 63 | trimSuffix "-" }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+spec:
+  volumeMode: Filesystem
+  {{- if .Values.pvc.storageClass }}
+  storageClassName: {{ .Values.pvc.storageClass }}
+  {{- end }}
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ .Values.redis.storage }}
+---
+{{- end -}}
+
+{{- if .Values.django.medias.enabled -}}
+{{ $fullname := printf "%s-medias-volume" .Release.Name | trunc 63 | trimSuffix "-" }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $fullname }}
+  labels:
+    app: {{ $fullname }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+spec:
+  volumeMode: Filesystem
+  {{- if .Values.pvc.storageClass }}
+  storageClassName: {{ .Values.pvc.storageClass }}
+  {{- end }}
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ .Values.redis.storage }}
+---
+{{- end -}}

@@ -1,0 +1,13 @@
+{{- if or .Values.django.statics.enabled .Values.django.medias.enabled -}}
+{{ $fullname := printf "%s-nginx-configmap" .Release.Name | trunc 63 | trimSuffix "-" }}
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+data:
+  nginx.conf: |-
+    {{- include "django.statics.nginx.conf" . | nindent 4 }}
+{{- end -}}

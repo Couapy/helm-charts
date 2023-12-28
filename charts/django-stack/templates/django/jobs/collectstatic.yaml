@@ -1,0 +1,47 @@
+{{- if .Values.django.statics.enabled -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-collectstatic
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  template:
+    spec:
+      {{- with .Values.django.image.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      restartPolicy: OnFailure
+      serviceAccountName: {{ .Release.Name }}
+      containers:
+        - name: {{ .Release.Name }}-collectstatic
+          image: {{ include "application.image" . }}
+          imagePullPolicy: {{ .Values.django.image.pullPolicy }}
+          {{- with .Values.django.workingDir }}
+          workingDir: {{ . }}
+          {{- end }}
+          command: ["python", "manage.py", "collectstatic", "--noinput"]
+          envFrom:
+            - secretRef:
+                name: {{ .Release.Name }}-django-secrets
+          resources:
+            limits:
+              cpu: "300m"
+              memory: "256Mi"
+            requests:
+              cpu: "300m"
+              memory: "256Mi"
+          volumeMounts:
+            - name: statics
+              mountPath: {{ .Values.django.statics.mountPath }}
+      volumes:
+        - name: statics
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-statics-volume
+  backoffLimit: 5
+{{- end -}}

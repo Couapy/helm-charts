@@ -1,0 +1,59 @@
+{{- if .Values.postgresql.enabled -}}
+{{ $fullname := printf "%s-postgresql" .Release.Name | trunc 63 | trimSuffix "-" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ $fullname }}
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: {{ $fullname }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      containers:
+        - name: {{ $fullname }}
+          image: {{ .Values.postgresql.image }}
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: {{ $fullname }}-secrets
+          ports:
+            - name: postgresql
+              containerPort: 5432
+              protocol: TCP
+          {{- if .Values.postgresql.resources }}
+          resources:
+            {{- toYaml .Values.postgresql.resources | nindent 12 }}
+          {{- end }}
+          startupProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready --username=$POSTGRES_USER --dbname=$POSTGRES_DB"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 15
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready --username=$POSTGRES_USER --dbname=$POSTGRES_DB"]
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data/
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ $fullname }}-volume
+{{- end -}}

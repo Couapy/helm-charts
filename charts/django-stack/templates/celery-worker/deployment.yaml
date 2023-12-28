@@ -1,0 +1,84 @@
+{{- if .Values.celery.enabled -}}
+{{- $fullname_django := printf "%s-django" .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- $namespace := .Release.Namespace -}}
+{{- range $worker := .Values.celery.workers }}
+{{- $fullname := printf "%s-celery-worker-%s" $.Release.Name $worker.slug | trunc 63 | trimSuffix "-" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "labels" $ | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ $fullname }}
+  replicas: {{ $worker.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: {{ $fullname }}
+    spec:
+      {{- with $.Values.django.image.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ $fullname }}
+          image: {{ include "application.image" $ }}
+          imagePullPolicy: {{ $.Values.django.image.pullPolicy }}
+          {{- with $.Values.django.workingDir }}
+          workingDir: {{ . }}
+          {{- end }}
+          args:
+            - celery
+            - --app={{ $.Values.celery.application }}
+            - worker
+            - --loglevel=INFO
+            - -Ofair
+            - --without-gossip
+            - --without-mingle
+            {{- if $worker.queues }}
+            - -Q
+            - {{ $worker.queues | join "," }}
+            {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ $fullname_django }}-secrets
+          {{- if $worker.resources }}
+          resources:
+            {{- toYaml $worker.resources | nindent 12 }}
+          {{- end }}
+          {{- if $.Values.django.medias.enabled }}
+          volumeMounts:
+            - name: medias
+              mountPath: {{ $.Values.django.medias.mountPath }}
+          {{- end }}
+          startupProbe:
+            exec:
+              command: ["/bin/sh", "-c", "celery --app config inspect ping -d celery@$HOSTNAME --timeout=10"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 5
+          livenessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "celery --app config inspect ping -d celery@$HOSTNAME --timeout=15"]
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 15
+      {{- if $.Values.django.medias.enabled }}
+      volumes:
+        - name: medias
+          persistentVolumeClaim:
+            claimName: {{ $.Release.Name }}-medias-volume
+      {{- end }}
+---
+{{ end -}}
+{{- end -}}

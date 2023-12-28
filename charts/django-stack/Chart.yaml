@@ -1,0 +1,10 @@
+apiVersion: v2
+name: django-stack
+version: 0.1.0
+kubeVersion: "^1.24.0"
+description: A Django stack with Celery, PostgreSQL, Redis and RabbitMQ
+type: application
+maintainers:
+  - name: Maël Marchand
+    email: contact@marchand.work
+    url: https://mael.marchand.cloud/

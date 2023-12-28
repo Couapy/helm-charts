@@ -1,0 +1,140 @@
+pvc:
+  storageClass: null
+
+django:
+  image:
+    repository: ""
+    tag: ""
+    pullPolicy: IfNotPresent
+    imagePullSecrets: []
+
+  workingDir: null
+
+  replicas: 1
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 3
+    cpuTargetPercentage: 80
+    memoryTargetPercentage: 80
+
+  resources:
+    limits:
+      cpu: "2000m"
+      memory: "1024Mi"
+    requests:
+      cpu: "300m"
+      memory: "512Mi"
+
+  secrets: {}
+
+  ingress:
+    tls:
+      enabled: true
+    hosts: []
+
+  migrations:
+    enabled: true
+
+  statics:
+    enabled: true
+    storage: 1Gi
+    mountPath: /mnt/statics
+
+  medias:
+    enabled: true
+    storage: 1Gi
+    mountPath: /mnt/medias
+
+nginx:
+  image:
+    repository: nginx
+    tag: 1.25.1-alpine3.17
+    pullPolicy: IfNotPresent
+
+celery:
+  enabled: true
+  application: celery_app
+
+  workers:
+    - slug: default
+      # queues:
+      #   - default
+      #   - celery
+      replicas: 1
+      autoscaling:
+        enabled: true
+        minReplicas: 1
+        maxReplicas: 3
+        cpuTargetPercentage: 80
+        memoryTargetPercentage: 80
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 1000m
+          memory: 1024Mi
+
+  beat:
+    enabled: true
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 1024Mi
+
+postgresql:
+  enabled: true
+  image: postgres:15.3-alpine3.18
+
+  storage: 1Gi
+
+  username: ngc-user
+  password: ngc-password
+  database: main
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1024Mi
+
+redis:
+  enabled: true
+  image: redis:7.0.11-alpine3.18
+
+  storage: 1Gi
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1024Mi
+
+rabbitmq:
+  enabled: true
+  image: rabbitmq:3.12.1-management-alpine
+
+  storage: 1Gi
+
+  username: django-user
+  password: django-user
+  vhost: django-user
+
+  management:
+    enabled: true
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1024Mi

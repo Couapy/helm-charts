@@ -1,0 +1,50 @@
+{{- $appname := .Release.Name -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-django-ingress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  rules:
+  {{- range $host := .Values.django.ingress.hosts }}
+  - host: {{ $host | quote }}
+    http:
+      paths:
+        {{- if $.Values.django.statics.enabled }}
+        - path: /static
+          pathType: Prefix
+          backend:
+            service:
+              name: {{ $appname }}-nginx-service
+              port:
+                number: 80
+        {{- end }}
+        {{- if $.Values.django.medias.enabled }}
+        - path: /media
+          pathType: Prefix
+          backend:
+            service:
+              name: {{ $appname }}-nginx-service
+              port:
+                number: 80
+        {{- end }}
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: {{ $appname }}-django-service
+              port:
+                number: 80
+  {{- end -}}
+  {{- if .Values.django.ingress.tls.enabled }}
+  tls:
+    - secretName: {{ $appname }}-tls
+      hosts:
+      {{- range $host := .Values.django.ingress.hosts }}
+        - {{ $host | quote }}
+      {{- end }}
+  {{- end -}}

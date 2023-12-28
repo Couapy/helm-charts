@@ -1,0 +1,18 @@
+{{- if .Values.redis.enabled -}}
+{{ $fullname := printf "%s-redis" .Release.Name | trunc 63 | trimSuffix "-" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  ports:
+    - name: redis
+      port: 15672
+      targetPort: 15672
+  selector:
+    app: {{ $fullname }}
+{{- end -}}
